@@ -7,4 +7,6 @@ add_executable(${TARGET_NAME} ${TARGET_SRC})
 target_link_libraries(${TARGET_NAME} PRIVATE
     Boost::system
     Threads::Threads
+    OpenSSL::SSL
+    OpenSSL::Crypto
     )

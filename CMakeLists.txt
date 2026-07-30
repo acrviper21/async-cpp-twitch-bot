@@ -14,6 +14,7 @@ endif()
 
 find_package(Boost REQUIRED COMPONENTS system CONFIG)
 find_package(Threads REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 set(TARGET_NAME twitch_bot)
 
