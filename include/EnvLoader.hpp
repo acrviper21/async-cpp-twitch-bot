@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdlib>
 #include <fstream>
 #include <string>
 
@@ -20,4 +21,9 @@ class EnvLoader
     const std::string &get_file_name() const { return file_name; }
 
     std::ifstream &get_file_stream() { return file_stream; }
+
+    const char *get_env_var_value(const std::string &env_value) const
+    {
+        return std::getenv(env_value.c_str());
+    }
 };
