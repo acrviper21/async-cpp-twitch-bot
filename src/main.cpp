@@ -103,7 +103,74 @@ int main()
     std::string session_id =
         jv.at("payload").at("session").at("id").as_string().c_str();
 
-    std::cout << "Session ID: " << session_id << std::endl;
+    // std::cout << "Session ID: " << session_id << std::endl;
+
+    json::object condition;
+    condition["broadcaster_user_id"] =
+        env_loader.get_env_var_value("TWITCH_BROADCASTER_ID");
+    condition["user_id"] =
+        env_loader.get_env_var_value("TWITCH_BROADCASTER_ID");
+
+    json::object transport;
+    transport["method"] = "websocket";
+    transport["session_id"] = session_id;
+
+    json::object body;
+    body["type"] = "channel.chat.message";
+    body["version"] = "1";
+    body["condition"] = condition;
+    body["transport"] = transport;
+
+    std::string payload = json::serialize(body);
+
+    beast::ssl_stream<beast::tcp_stream> http_stream{io_context, ctx};
+
+    auto const api_results =
+        resolver.resolve(env_loader.get_env_var_value("TWITCH_REST_API_SERVER"),
+                         env_loader.get_env_var_value("TWITCH_REST_API_PORT"));
+
+    beast::get_lowest_layer(http_stream).connect(api_results);
+
+    SSL_set_tlsext_host_name(
+        http_stream.native_handle(),
+        env_loader.get_env_var_value("TWITCH_REST_API_SERVER"));
+
+    http_stream.handshake(ssl::stream_base::client);
+
+    // Create an HTTP request object whose body payload is stored as a string
+    http::request<http::string_body> req{
+        http::verb::post, env_loader.get_env_var_value("TWITCH_REST_API_PATH"),
+        11};
+
+    // Set HTTP headers for the request
+    req.set(http::field::host,
+            env_loader.get_env_var_value("TWITCH_REST_API_SERVER"));
+    req.set(http::field::content_type, "application/json");
+    req.set(http::field::authorization,
+            "Bearer " + std::string(env_loader.get_env_var_value(
+                            "TWITCH_ACCESS_TOKEN")));
+    req.set("Client-Id", env_loader.get_env_var_value("TWITCH_CLIENT_ID"));
+
+    req.body() = payload;
+    req.prepare_payload();
+
+    http::write(http_stream, req);
+
+    http::response<http::string_body> res;
+    beast::flat_buffer http_stream_buffer;
+    http::read(http_stream, http_stream_buffer, res);
+
+    // Check the response status code
+    if (res.result() == http::status::accepted)
+    {
+        std::cout << "Subscription successful!" << std::endl;
+        std::cout << "Response body: " << res.body() << std::endl;
+    }
+    else
+    {
+        std::cout << "Error from Twitch: " << res.result_int() << std::endl;
+        std::cout << "Details: " << res.body() << std::endl;
+    }
 
     return 0;
 }
